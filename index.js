@@ -29,6 +29,7 @@ const batteryStore = {};
     args: [
       "--disable-dev-shm-usage",
       "--no-sandbox",
+      "--font-render-hinting=none",
       `--lang=${config.language}`,
       config.ignoreCertificateErrors && "--ignore-certificate-errors"
     ].filter((x) => x),
@@ -182,6 +183,7 @@ async function renderAndConvertAsync(browser) {
     fs.unlink(tempPath);
     console.log(`Finished ${url}`);
 
+
     if (
       pageBatteryStore &&
       pageBatteryStore.batteryLevel !== null &&
@@ -194,6 +196,8 @@ async function renderAndConvertAsync(browser) {
       );
     }
   }
+
+  notifyHomeAssistant()
 }
 
 function sendBatteryLevelToHomeAssistant(
@@ -223,6 +227,29 @@ function sendBatteryLevelToHomeAssistant(
     console.error(`Update ${pageIndex} at ${url} error: ${e.message}`);
   });
   req.write(batteryStatus);
+  req.end();
+}
+
+async function notifyHomeAssistant(data = {}) {
+  const url = `${config.baseUrl}/api/webhook/kindle_display_updates`,
+  const httpLib = url.toLowerCase().startsWith("https") ? https : http;
+
+  const req = httpLib.request(url, {
+    method: 'POST',
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(data)
+  }, (res) => {
+    if (res.statusCode !== 200) {
+      console.error(
+        `Notify ${url} status ${res.statusCode}: ${res.statusMessage}`
+      );
+    }
+  })
+
+  req.on("error", (e) => {
+    console.error(`Notify ${url} error: ${e.message}`);
+  });
+  req.write(data);
   req.end();
 }
 
